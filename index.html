@@ -3,111 +3,284 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>استخراج و تحلیل پاسخ‌های فارسی</title>
+  <title>استخراج پاسخ‌های استوری اینستاگرام (فارسی) + تحلیل دغدغه‌ها</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    body{font-family: Vazirmatn,system-ui; margin:0; background:#0b0e14; color:#e5e7eb}
+    @font-face{font-family: Vazirmatn; src:url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn/Vazirmatn-UI-FD.ttf') format('truetype'); font-display:swap}
+    .wrap{max-width:1100px;margin:18px auto;padding:12px}
+    header{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:8px}
+    h1{font-size:18px;margin:0}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap}
+    .tab{padding:8px 12px;border:1px solid #283143;border-radius:12px;cursor:pointer;background:#0f1422}
+    .tab.active{background:#171e2f}
+    .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:12px}
+    .card{background:#0f1422;border:1px solid #283143;border-radius:12px;padding:12px}
+    .muted{color:#94a3b8;font-size:12px}
+    input[type=file]{display:none}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    button{background:#1b2336;border:1px solid #2d3650;color:#fff;border-radius:10px;padding:8px 12px;cursor:pointer}
+    button.primary{background:#3b5ccc}
+    button.good{background:#1e9c6d}
+    .list{max-height:360px;overflow:auto;border:1px solid #283143;border-radius:10px}
+    .item{display:grid;grid-template-columns:80px 1fr;gap:10px;padding:10px;border-bottom:1px solid #223047}
+    .thumb{width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #283143}
+    textarea{width:100%;min-height:80px;background:#0b1120;border:1px solid #25324a;color:#e5e7eb;border-radius:10px;padding:8px}
+    progress{width:100%;height:8px}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid #283143;padding:8px;text-align:right}
+  </style>
 </head>
 <body>
-  <h1>استخراج پاسخ‌های استوری اینستاگرام + تحلیل دغدغه‌ها</h1>
-  <input id="fileInput" type="file" accept="image/*" multiple>
-  <button id="startBtn">شروع OCR</button>
-  <button id="downloadXLSX">دانلود اکسل</button>
-  <button id="analyzeBtn">تحلیل دغدغه‌ها</button>
-  <ul id="resultList"></ul>
-  <div id="analysis"></div>
+<div class="wrap">
+  <header>
+    <h1>استخراج پاسخ‌های استوری اینستاگرام (OCR فارسی) + تحلیل دغدغه‌ها</h1>
+    <div class="tabs" id="tabs">
+      <div class="tab active" data-tab="ocr">۱) استخراج متون</div>
+      <div class="tab" data-tab="review">۲) مرور و خروجی اکسل</div>
+      <div class="tab" data-tab="analyze">۳) تحلیل دغدغه‌ها</div>
+      <div class="tab" data-tab="help">راهنما</div>
+    </div>
+  </header>
 
-  <script>
-    const state = { files: [], results: [] };
+  <!-- OCR -->
+  <section class="grid" data-pane="ocr">
+    <div class="card">
+      <h3>انتخاب عکس‌ها</h3>
+      <div class="row">
+        <button onclick="document.getElementById('files').click()">افزودن فایل</button>
+        <input id="files" type="file" accept="image/*" multiple>
+        <span id="qinfo" class="muted">۰ فایل در صف</span>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <label><input type="checkbox" id="preEnhance"> پیش‌پردازش تصویری</label>
+        <label style="margin-inline-start:10px"><input type="checkbox" id="dualLang" checked> تشخیص همزمان فارسی+انگلیسی</label>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <label><input type="checkbox" id="useReplySeg" checked> جداسازی هوشمند هر باکس با تشخیص فازی «Reply»</label>
+        <label style="margin-inline-start:10px"><input type="checkbox" id="fallbackLine" checked> در صورت عدم شناسایی، جداسازی بر اساس خطوط</label>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="primary" id="go">شروع OCR</button>
+        <button id="clear">پاک‌سازی صف</button>
+      </div>
+      <div style="margin-top:8px">
+        <progress id="prog" value="0" max="100"></progress>
+        <div id="status" class="muted">منتظر شروع…</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>پیش‌نمایش صف</h3>
+      <div class="list" id="qlist"></div>
+    </div>
+  </section>
 
-    document.getElementById('fileInput').addEventListener('change', e => {
-      state.files = Array.from(e.target.files);
-    });
+  <!-- REVIEW -->
+  <section class="grid" data-pane="review" hidden>
+    <div class="card">
+      <h3>نتایج استخراج‌شده</h3>
+      <div class="list" id="rlist"></div>
+    </div>
+    <div class="card">
+      <h3>خروجی</h3>
+      <div class="row">
+        <button class="good" id="dlXLSX">دانلود اکسل (یک ستون: پاسخ‌ها)</button>
+        <button id="dlCSV">دانلود CSV (UTF-8)</button>
+        <span id="rcount" class="muted">۰ پاسخ</span>
+      </div>
+    </div>
+  </section>
 
-    document.getElementById('startBtn').addEventListener('click', async () => {
-      state.results = [];
-      const worker = await Tesseract.createWorker('fas', 1);
-      for (const file of state.files) {
-        const base64 = await fileToDataURL(file);
-        const { data: { text } } = await worker.recognize(base64);
-        // جدا کردن پاسخ‌ها به صورت خط‌به‌خط، هر باکس جداگانه
-        const lines = text.split(/\n+/).map(t => t.trim()).filter(Boolean);
-        lines.forEach(line => {
-          // حذف خطوطی که به نظر میاد سوال یا نام کاربری هستند
-          if (!/reply/i.test(line) && !/^@/.test(line) && line.length > 1) {
-            state.results.push(line);
-          }
-        });
-      }
-      await worker.terminate();
-      renderResults();
-    });
+  <!-- ANALYZE -->
+  <section class="grid" data-pane="analyze" hidden>
+    <div class="card">
+      <h3>ورودی تحلیل</h3>
+      <div class="row">
+        <button onclick="document.getElementById('excelIn').click()">آپلود اکسل/CSV</button>
+        <input id="excelIn" type="file" accept=".xlsx,.xls,.csv" hidden>
+        <button id="useCurrent">تحلیل همین نتایج</button>
+      </div>
+      <p class="muted">تحلیل موضوعی/چالشی (نه صرفاً شمارش کلمات). دسته‌بندی‌ها و الگوهای معنایی به‌صورت قواعد حرفه‌ای تعریف شده‌اند.</p>
+    </div>
+    <div class="card">
+      <h3>نتایج تحلیل</h3>
+      <div id="kpi" class="muted">—</div>
+      <table id="tbl"></table>
+      <div style="margin-top:10px">
+        <h4>نمونه جملات هر موضوع</h4>
+        <div id="samples" class="muted"></div>
+      </div>
+    </div>
+  </section>
 
-    function renderResults() {
-      const list = document.getElementById('resultList');
-      list.innerHTML = '';
-      state.results.forEach(t => {
-        const li = document.createElement('li');
-        li.textContent = t;
-        list.appendChild(li);
-      });
+  <!-- HELP -->
+  <section data-pane="help" hidden>
+    <div class="card">
+      <h3>راهنما (استقرار روی GitHub Pages)</h3>
+      <ol>
+        <li>این فایل را با نام <b>index.html</b> در مخزن عمومی‌تان قرار دهید.</li>
+        <li>از Settings → Pages شاخه <code>main</code> و مسیر <code>/root</code> را انتخاب کنید.</li>
+        <li>۱–۲ دقیقه بعد آدرس صفحه فعال می‌شود. همه پردازش‌ها فقط در مرورگر شما انجام می‌شود.</li>
+      </ol>
+    </div>
+  </section>
+</div>
+
+<script>
+// ===== Utilities =====
+const $ = q=>document.querySelector(q); const $$ = q=>document.querySelectorAll(q);
+const state = { files:[], results:[], responses:[], running:false };
+
+$('#tabs').addEventListener('click', e=>{ const t=e.target.closest('.tab'); if(!t) return; $$('.tab').forEach(x=>x.classList.remove('active')); t.classList.add('active'); const id=t.dataset.tab; $$('section[data-pane]').forEach(p=>p.hidden=(p.dataset.pane!==id)); });
+
+$('#files').addEventListener('change', e=>{ state.files=[...e.target.files]; renderQueue(); });
+$('#clear').onclick = ()=>{ state.files=[]; renderQueue(); };
+
+function renderQueue(){ $('#qinfo').textContent = state.files.length + ' فایل در صف'; const box=$('#qlist'); box.innerHTML=''; state.files.forEach(f=>{ const url=URL.createObjectURL(f); const el=document.createElement('div'); el.className='item'; el.innerHTML=`<img class='thumb' src='${url}'><div><b>${f.name}</b><div class='muted'>${(f.size/1024/1024).toFixed(2)} MB</div></div>`; box.appendChild(el); }); }
+
+// ===== OCR =====
+$('#go').onclick = startOCR;
+async function startOCR(){
+  if(state.running || state.files.length===0) return; state.running=true; $('#status').textContent='در حال بارگذاری موتور تشخیص...';
+  const langs = $('#dualLang').checked ? 'fas+eng' : 'fas';
+  const worker = await Tesseract.createWorker(langs, 1, { logger: m=>{ if(m.status==='recognizing text'){ $('#status').textContent = 'پردازش: ' + Math.round(m.progress*100) + '%'; }}});
+
+  state.responses=[]; let done=0; for(const f of state.files){
+    const img64 = await fileToDataURL(f); const imgObj = await loadImage(img64);
+    const src = $('#preEnhance').checked ? await enhance(imgObj) : img64;
+    const { data } = await worker.recognize(src);
+    const words = data.words.map(w=>({ t:cleanUnit(w.text), x0:w.bbox.x0, y0:w.bbox.y0, x1:w.bbox.x1, y1:w.bbox.y1 } )).filter(w=>w.t);
+    const replies = words.filter(w=>isReplyToken(w.t));
+
+    if($('#useReplySeg').checked && replies.length){
+      const bands = buildBandsByKMeans(replies, imgObj.width);
+      const grouped = segmentByReply(words, replies, bands);
+      grouped.forEach(g=>{ const text = linesFromWords(g).join(' ').trim(); if(text) state.responses.push(text); });
+    } else if($('#fallbackLine').checked) {
+      const lines = data.lines.map(l=>({ text:cleanUnit(l.text), y0:l.bbox.y0, y1:l.bbox.y1, x:l.bbox.x0 })).filter(l=>l.text);
+      const groups = groupByVerticalGaps(lines);
+      groups.forEach(g=>{ const t=g.map(x=>x.text).join(' ').trim(); if(t) state.responses.push(t); });
     }
 
-    document.getElementById('downloadXLSX').addEventListener('click', () => {
-      if (!state.results.length) {
-        alert('هیچ پاسخی برای خروجی وجود ندارد');
-        return;
-      }
-      const wsData = [['پاسخ'], ...state.results.map(r => [r])];
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
-      XLSX.utils.book_append_sheet(wb, ws, 'پاسخ‌ها');
-      XLSX.writeFile(wb, 'pasokhha.xlsx', { compression: true });
-    });
+    done++; $('#prog').value = Math.round(done/state.files.length*100);
+  }
+  await worker.terminate(); state.running=false; $('#status').textContent='تمام شد. به تب «مرور و خروجی اکسل» بروید.'; renderResults();
+}
 
-    document.getElementById('analyzeBtn').addEventListener('click', () => {
-      if (!state.results.length) {
-        alert('هیچ پاسخی برای تحلیل وجود ندارد');
-        return;
-      }
-      const topics = analyzeTopics(state.results);
-      displayAnalysis(topics);
-    });
+function cleanUnit(s){ return (s||'').replace(/[\u200c\u200f\u202a-\u202e]/g,'').trim(); }
+function isReplyToken(t){
+  // تطبیق فازی ساده: reply / replv / رپلای (اگر فارسی بیاد) / rePly ...
+  t = (t||'').toLowerCase();
+  const cand = ['reply','replv','rep1y','replay','رپلای'];
+  return cand.some(c=>t.includes(c));
+}
 
-    function analyzeTopics(responses) {
-      const categories = {
-        روابط: ['رابطه', 'دوست', 'ازدواج', 'عشق', 'همسر'],
-        مالی: ['پول', 'درآمد', 'کار', 'حقوق', 'بدهی'],
-        شغلی: ['شغل', 'بیکار', 'کار', 'مدیر', 'استخدام'],
-        سلامتی: ['سلامت', 'بیماری', 'درد', 'پزشک', 'ورزش'],
-        شخصی: ['اعتماد', 'آرامش', 'ترس', 'استرس', 'هدف']
-      };
-      const counts = {};
-      responses.forEach(res => {
-        for (const [cat, keywords] of Object.entries(categories)) {
-          if (keywords.some(k => res.includes(k))) {
-            counts[cat] = (counts[cat] || 0) + 1;
-          }
-        }
-      });
-      return counts;
+function groupByVerticalGaps(lines){
+  lines.sort((a,b)=>a.y0-b.y0); const hs = lines.map(l=>l.y1-l.y0); const median = hs.sort((a,b)=>a-b)[Math.floor(hs.length/2)] || 18;
+  const out=[]; let cur=[]; let prevY=-1; const thr = median*1.8; for(const l of lines){ if(prevY>=0 && (l.y0-prevY)>thr){ if(cur.length) out.push(cur), cur=[]; } cur.push(l); prevY=l.y1; } if(cur.length) out.push(cur); return out; }
+
+// ---- Column bands from Reply positions using 1D K-Means (k=2 or 3 auto) ----
+function buildBandsByKMeans(replies, width){
+  const xs = replies.map(r=>(r.x0+r.x1)/2);
+  // try k=2 and k=3, choose by silhouette-like gap
+  const ks = [2,3]; let best=null; for(const k of ks){ const model=kmeans1D(xs,k); const gap = clusterGap(model); if(!best || gap>best.gap){ best={k,model,gap}; } }
+  const centers = best.model.centers.sort((a,b)=>a-b); const bounds=[];
+  for(let i=0;i<centers.length;i++){
+    const left = i===0 ? 0 : (centers[i-1]+centers[i])/2;
+    const right = i===centers.length-1 ? width : (centers[i]+centers[i+1])/2;
+    bounds.push([left,right]);
+  }
+  return bounds;
+}
+function kmeans1D(vals,k){
+  const min=Math.min(...vals), max=Math.max(...vals); let centers=Array.from({length:k},(_,i)=>min+(i+1)*(max-min)/(k+1));
+  for(let it=0; it<15; it++){
+    const buckets=Array.from({length:k},()=>[]); vals.forEach(v=>{ let bi=0,bd=Infinity; centers.forEach((c,i)=>{ const d=Math.abs(v-c); if(d<bd){bd=d;bi=i;} }); buckets[bi].push(v); });
+    centers=centers.map((c,i)=> buckets[i].length? (buckets[i].reduce((a,b)=>a+b,0)/buckets[i].length):c );
+  }
+  return {centers};
+}
+function clusterGap(model){ const c=[...model.centers].sort((a,b)=>a-b); let m=0; for(let i=1;i<c.length;i++) m=Math.max(m, c[i]-c[i-1]); return m; }
+
+function segmentByReply(words, replies, bands){
+  const replyGroups = bands.map(()=>[]);
+  replies.forEach(r=>{ const cx=(r.x0+r.x1)/2; const bi = bands.findIndex(b=>cx>=b[0] && cx<=b[1]); replyGroups[bi>=0?bi:0].push(r); });
+  replyGroups.forEach(g=>g.sort((a,b)=>a.y1-b.y1));
+
+  const results=[];
+  for(let bi=0; bi<replyGroups.length; bi++){
+    const reps = replyGroups[bi]; const [bx0,bx1]=bands[bi] || [0,1e9]; let prevY=-1000;
+    for(const r of reps){
+      const top = prevY; const bottom = r.y1+6; prevY = bottom;
+      const pack = words.filter(w=> w.y1<=bottom && w.y0>top && ( (w.x0+w.x1)/2 >= bx0 && (w.x0+w.x1)/2 <= bx1) && !isReplyToken(w.t) );
+      results.push(pack);
     }
+  }
+  return results.filter(p=>p && p.length);
+}
 
-    function displayAnalysis(counts) {
-      const container = document.getElementById('analysis');
-      container.innerHTML = '<h2>نتایج تحلیل</h2>';
-      const table = document.createElement('table');
-      table.innerHTML = '<tr><th>دسته‌بندی</th><th>تعداد</th></tr>' +
-        Object.entries(counts).map(([cat, count]) => `<tr><td>${cat}</td><td>${count}</td></tr>`).join('');
-      container.appendChild(table);
-    }
+function linesFromWords(words){
+  words.sort((a,b)=> (a.y0===b.y0? a.x0-b.x0 : a.y0-b.y0));
+  const lines=[]; let cur=[]; let prevY=null; let hMed = median(words.map(w=>w.y1-w.y0)) || 18; const thr = hMed*0.8; 
+  for(const w of words){ if(prevY!==null && Math.abs(w.y0 - prevY) > thr){ lines.push(cur.map(x=>x.t).join(' ')); cur=[w]; } else { cur.push(w); } prevY = w.y0; }
+  if(cur.length) lines.push(cur.map(x=>x.t).join(' '));
+  return lines;
+}
+function median(arr){ if(!arr.length) return 0; const a=[...arr].sort((x,y)=>x-y); return a[Math.floor(a.length/2)]; }
 
-    function fileToDataURL(file) {
-      return new Promise(res => {
-        const r = new FileReader();
-        r.onload = () => res(r.result);
-        r.readAsDataURL(file);
-      });
-    }
-  </script>
+// ===== Review/Export =====
+function renderResults(){ const box=$('#rlist'); box.innerHTML=''; state.responses.forEach((t,i)=>{ const el=document.createElement('div'); el.className='item'; el.innerHTML=`<div style="grid-column:1/span 2"><b>#${i+1}</b><textarea data-i='${i}'>${t}</textarea></div>`; box.appendChild(el); }); box.querySelectorAll('textarea').forEach(t=>t.oninput=()=>{ const i=+t.dataset.i; state.responses[i]=t.value; }); $('#rcount').textContent = state.responses.length + ' پاسخ'; }
+
+$('#dlXLSX').onclick = ()=>{ if(!state.responses.length){ alert('چیزی برای خروجی نیست'); return; } const ws=XLSX.utils.aoa_to_sheet([['پاسخ'], ...state.responses.map(t=>[t])]); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'پاسخ‌ها'); XLSX.writeFile(wb, 'pasokhha.xlsx', {compression:true}); };
+$('#dlCSV').onclick = ()=>{ if(!state.responses.length){ alert('چیزی برای خروجی نیست'); return; } const rows=[['\ufeffپاسخ'], ...state.responses.map(t=>[t])]; const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n'); const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pasokhha.csv'; a.click(); };
+
+// ===== Analysis =====
+let analysisTexts=[]; $('#useCurrent').onclick=()=>{ analysisTexts=[...state.responses]; runAnalysis(); };
+$('#excelIn').addEventListener('change', async e=>{ const f=e.target.files[0]; if(!f) return; const data=await f.arrayBuffer(); const wb=XLSX.read(data,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]]; const rows=XLSX.utils.sheet_to_json(ws,{header:1}); const idx = rows[0]?.findIndex(h=>/پاسخ|متن|text/i.test(h)) ?? 0; analysisTexts = rows.slice(1).map(r=>String(r[idx]||'').trim()).filter(Boolean); runAnalysis(); e.target.value=''; });
+
+function runAnalysis(){ if(!analysisTexts.length){ alert('ورودی تحلیل خالی است'); return; }
+  const res = analyzeIssues(analysisTexts);
+  $('#kpi').innerHTML = `تعداد پاسخ‌ها: <b>${res.total}</b> | موضوعات شناسایی‌شده: <b>${Object.keys(res.issues).length}</b>`;
+  const entries = Object.entries(res.issues).sort((a,b)=>b[1].count-a[1].count);
+  $('#tbl').innerHTML = '<thead><tr><th>موضوع</th><th>تعداد</th></tr></thead>' + '<tbody>' + entries.map(([k,v])=>`<tr><td>${k}</td><td>${v.count}</td></tr>`).join('') + '</tbody>';
+  const sampDiv = $('#samples'); sampDiv.innerHTML=''; entries.slice(0,8).forEach(([k,v])=>{ const box=document.createElement('div'); box.style.margin='8px 0'; box.innerHTML = `<b>${k}</b><br><span class='muted'>نمونه‌ها: </span><ul>` + v.samples.slice(0,3).map(s=>`<li>${escapeHtml(s)}</li>`).join('') + '</ul>'; sampDiv.appendChild(box); });
+}
+
+function analyzeIssues(texts){
+  const rules = [
+    {key:'خیانت/رابطه موازی', pats:['خیانت','رابطه موازی','زن شوهردار','مرد متاهل','چت پنهانی','رل','در ارتباط بودن']},
+    {key:'وابستگی عاطفی/رها نشدن', pats:['وابسته','ولم','ترک کردن','نمی‌تونم جدا','دلبستگی','وابستگی']},
+    {key:'طلاق/جدایی', pats:['طلاق','جدا شد','مطلقه','صیغه','جدایی']},
+    {key:'سردی رابطه/کم‌محلی', pats:['سردی','کم محلی','بی توجه','کم‌توجه','سکوت','قهر']},
+    {key:'دخالت خانواده‌ها', pats:['خانواده شوهر','خانواده زن','مامانش','خواهرشوهر','دخالت']},
+    {key:'اعتماد به نفس/عزت نفس', pats:['اعتماد به نفس','عزت نفس','خودباوری','خودکم‌بینی']},
+    {key:'اضطراب/استرس/افکار منفی', pats:['استرس','اضطراب','وسواس','فکر زیاد','فوبیا','حملات پانیک']},
+    {key:'افسردگی/بی‌انگیزگی', pats:['افسردگی','بی انگیزه','غمگین','حس و حال ندارم']},
+    {key:'درآمد/فشار مالی', pats:['پول','درآمد','خرج','قسط','بدهی','تورم','گرونی']},
+    {key:'شغل/بیکاری', pats:['بیکار','کار پیدا','استخدام','ارتقا','مدیر','همکار']},
+    {key:'تحصیلی/کنکور', pats:['کنکور','درس','امتحان','دانشگاه','پایان نامه']},
+    {key:'زناشویی/مسائل جنسی', pats:['رابطه جنسی','سردمزاج','میل جنسی','ناتوانی','سکس']},
+    {key:'فرزندپروری', pats:['بچه','فرزند','نوجوان','تربیت','مدرسه','شیطنت']},
+    {key:'سلامتی بدن/وزن', pats:['اضافه وزن','کاهش وزن','رژیم','ورزش','پوست','مو','درد','بیماری']},
+  ];
+  const issues = {}; const norm = s=>s.replace(/[\u200c\u200f]/g,' ').toLowerCase();
+  for(const t of texts){ const s = norm(t); const hitKeys=[]; rules.forEach(r=>{ if(r.pats.some(p=>s.includes(p.replace(/\s+/g,' ').toLowerCase()))) hitKeys.push(r.key); });
+    if(hitKeys.length===0){
+      const intent = s.includes('چیکار')||s.includes('چه کار')||s.includes('میخوام')? 'درخواست راهکار' : (s.endsWith('?')? 'سؤال' : 'ابهام/شرح وضعیت');
+      addIssue(intent, t);
+    } else { hitKeys.forEach(k=>addIssue(k, t)); }
+  }
+  function addIssue(key, text){ if(!issues[key]) issues[key]={count:0,samples:[]}; issues[key].count++; if(issues[key].samples.length<5) issues[key].samples.push(text); }
+  return { total:texts.length, issues };
+}
+
+// ===== helpers =====
+function fileToDataURL(file){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(file); }); }
+function loadImage(src){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=rej; img.src=src; }); }
+async function enhance(img){ const c=document.createElement('canvas'); const ctx=c.getContext('2d'); c.width=img.width; c.height=img.height; ctx.drawImage(img,0,0); let d=ctx.getImageData(0,0,c.width,c.height); const a=d.data; const contrast=1.35, intercept=128*(1-contrast); for(let i=0;i<a.length;i+=4){ const g=0.299*a[i]+0.587*a[i+1]+0.114*a[i+2]; let v=g*contrast+intercept; v=v<0?0:(v>255?255:v); const b=v>160?255:(v<100?0:v); a[i]=a[i+1]=a[i+2]=b; } ctx.putImageData(d,0,0); return c.toDataURL('image/png'); }
+function escapeHtml(s){ return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+</script>
 </body>
 </html>
