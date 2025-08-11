@@ -1,382 +1,86 @@
 <!doctype html>
 <html lang="fa" dir="rtl">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>OCR فارسی انبوه (بدون سرور) — آماده برای cPanel</title>
-  <!-- Tesseract.js (browser) -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
-  <!-- SheetJS for Excel/CSV export -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <!-- JSZip to accept ZIP uploads -->
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <style>
-    :root {
-      --bg: #0b0f14; --card: #121821; --muted: #92a0b3; --text: #e6eef7; --accent: #5cc8ff; --ok:#41d392; --warn:#ffb454;
-    }
-    * { box-sizing: border-box; }
-    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial; background:var(--bg); color:var(--text); }
-    header { padding: 24px; text-align:center; border-bottom:1px solid #1d2530; }
-    h1 { margin:0; font-size: clamp(18px, 3vw, 28px); letter-spacing: .2px; }
-    main { max-width: 1100px; margin: 20px auto; padding: 0 16px 100px; }
-    .card { background:var(--card); border:1px solid #1d2530; border-radius: 18px; padding: 18px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
-    .grid { display:grid; gap:14px; grid-template-columns: 1fr; }
-    @media (min-width:900px){ .grid{ grid-template-columns: 1.1fr .9fr; } }
-    .dropzone { border:2px dashed #2a3545; border-radius:18px; padding:22px; text-align:center; transition: .2s ease; }
-    .dropzone.dragover{ border-color: var(--accent); background: #0f1621; }
-    .dropzone input{ display:none; }
-    .muted { color: var(--muted); font-size: 13px; }
-    .row { display:flex; gap:10px; flex-wrap: wrap; align-items: center; }
-    .row > * { flex: none; }
-    .btn { background:#152032; color:#e7f1ff; border:1px solid #2a3545; padding:10px 14px; border-radius:12px; cursor:pointer; transition:.15s; font-weight:600; }
-    .btn:hover { border-color: var(--accent); box-shadow:0 0 0 2px rgba(92,200,255,.15) inset; }
-    .btn.secondary{ background:#0d131c; }
-    .btn.warn{ border-color: var(--warn); color:#ffe2b3; }
-    .btn.ok{ border-color: var(--ok); color:#d6ffe9; }
-    .controls { display:grid; gap:10px; grid-template-columns: repeat(2, minmax(0,1fr)); }
-    .controls label { font-size:12px; color:var(--muted); display:block; margin-bottom:6px; }
-    .controls input, .controls select { width:100%; background:#0d131c; border:1px solid #263145; color:var(--text); padding:10px 12px; border-radius:10px; }
-    .progress-wrap { margin-top:12px; }
-    .progress { height:10px; background:#0d131c; border:1px solid #263145; border-radius: 8px; overflow:hidden; }
-    .bar { height:100%; width:0%; background: linear-gradient(90deg, var(--accent), #9be7ff); transition: width .25s; }
-    .table-wrap { margin-top:16px; border:1px solid #253046; border-radius:14px; overflow:hidden; }
-    table { width:100%; border-collapse: collapse; font-size:13px; }
-    th, td { padding:10px 12px; border-bottom:1px solid #1e2737; vertical-align: top; }
-    th { background:#0d141e; color:#b5c6de; position:sticky; top:0; z-index:1; }
-    tbody tr:nth-child(odd) td { background:#0c1119; }
-    .num { text-align:center; color:#cbd7e7; }
-    .filename { color:#cfe6ff; word-break: break-all; }
-    .conf { color:#9fe9c3; font-weight:600; }
-    .err { color:#ffb8b8; }
-    footer { position:fixed; left:0; right:0; bottom:0; background: linear-gradient(180deg, rgba(11,15,20,0) 0%, rgba(11,15,20,.95) 40%, rgba(11,15,20,1) 100%); padding:16px; }
-    .footer-bar { max-width:1100px; margin:0 auto; display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; align-items:center; }
-  </style>
+<meta charset="utf-8" />
+<title>OCR فارسی انبوه</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
-  <header>
-    <h1>OCR فارسی انبوه — اجرا داخل مرورگر (بدون نیاز به سرور)</h1>
-    <div class="muted">تصاویر یا فایل ZIP را اینجا رها کنید؛ متن استخراج می‌شود و خروجی CSV/XLSX می‌گیرید. مناسب cPanel (فقط آپلود فایل HTML).</div>
-  </header>
-
-  <main class="grid">
-    <section class="card">
-      <h2 style="margin:6px 0 14px">ورود فایل‌ها</h2>
-      <div id="dropzone" class="dropzone">
-        <p style="margin:0 0 6px">فایل‌ها را اینجا بکشید و رها کنید</p>
-        <div class="muted">تصویرهای .png .jpg .jpeg .webp .bmp .tif .tiff یا بسته .zip</div>
-        <div style="margin-top:10px"><button class="btn" id="btnChoose">انتخاب فایل…</button></div>
-        <input id="fileInput" type="file" multiple accept="image/*,.zip" />
-      </div>
-
-      <div style="margin-top:16px" class="controls">
-        <div>
-          <label>تعداد پردازش همزمان (Workers)</label>
-          <select id="concurrency">
-            <option>1</option><option selected>2</option><option>3</option><option>4</option><option>6</option><option>8</option>
-          </select>
-        </div>
-        <div>
-          <label>حذف فاصله‌های اضافه و خط‌نو (پاکسازی متن)</label>
-          <select id="cleanup">
-            <option value="minimal" selected>حداقلی</option>
-            <option value="aggressive">تهاجمی</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="row" style="margin-top:10px">
-        <button class="btn ok" id="btnStart" disabled>شروع OCR</button>
-        <button class="btn warn" id="btnPause" disabled>توقف موقت</button>
-        <button class="btn secondary" id="btnClear">پاک‌سازی لیست</button>
-      </div>
-
-      <div class="progress-wrap">
-        <div class="row" style="justify-content:space-between">
-          <div class="muted">وضعیت: <span id="status">منتظر فایل…</span></div>
-          <div class="muted">پیشرفت کلی: <span id="pct">0%</span></div>
-        </div>
-        <div class="progress"><div class="bar" id="bar"></div></div>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2 style="margin:6px 0 14px">خروجی</h2>
-      <div class="row" style="margin-bottom:10px">
-        <button class="btn" id="btnExportCSV" disabled>خروجی CSV</button>
-        <button class="btn" id="btnExportXLSX" disabled>خروجی Excel (XLSX)</button>
-        <button class="btn secondary" id="btnExportJSON" disabled>خروجی JSON</button>
-      </div>
-      <div class="table-wrap" style="max-height: 420px; overflow:auto">
-        <table id="table">
-          <thead>
-            <tr>
-              <th style="width:64px">#</th>
-              <th>نام فایل</th>
-              <th>متن</th>
-              <th style="width:120px">میانگین اطمینان</th>
-              <th style="width:160px">خطا</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-  </main>
-
-  <footer>
-    <div class="footer-bar">
-      <div class="muted">زبان OCR: فارسی (fas). اجرای کامل در مرورگر شما. مسیر دیتای زبان از CDN.</div>
-      <div class="muted">برای دقت بهتر: تصاویر واضح، کنتراست خوب، متن بدون استیکر/استروک ضخیم.</div>
-    </div>
-  </footer>
-
+<input type="file" id="fileInput" multiple accept="image/*,.zip" />
+<button id="startBtn">شروع OCR</button>
+<button id="exportXLSX">خروجی Excel</button>
+<table border="1" id="resultTable">
+<thead><tr><th>ردیف</th><th>نام فایل</th><th>متن</th><th>اطمینان</th><th>خطا</th></tr></thead>
+<tbody></tbody>
+</table>
 <script>
-(function(){
-  const drop = document.getElementById('dropzone');
-  const fileInput = document.getElementById('fileInput');
-  const btnChoose = document.getElementById('btnChoose');
-  const btnStart = document.getElementById('btnStart');
-  const btnPause = document.getElementById('btnPause');
-  const btnClear = document.getElementById('btnClear');
-  const btnExportCSV = document.getElementById('btnExportCSV');
-  const btnExportXLSX = document.getElementById('btnExportXLSX');
-  const btnExportJSON = document.getElementById('btnExportJSON');
-  const tableBody = document.querySelector('#table tbody');
-  const statusEl = document.getElementById('status');
-  const bar = document.getElementById('bar');
-  const pct = document.getElementById('pct');
-  const concurrencyEl = document.getElementById('concurrency');
-  const cleanupEl = document.getElementById('cleanup');
+let tasks = [];
+let results = [];
 
-  let tasks = []; // { id, name, file }
-  let results = []; // { id, name, text, conf, error }
-  let inProgress = 0;
-  let nextIndex = 0;
-  let paused = false;
-  let total = 0;
+function cleanText(str) {
+  if (!str) return '';
+  let s = String(str).replace(/\r\n|\r|\n/g, ' ').replace(/\s+/g, ' ').trim();
+  s = s.replace(/\u200c/g, '\u200c')
+       .replace(/ ?([،,:;؛\.\!\?]) ?/g, '$1 ')
+       .replace(/\s{2,}/g, ' ')
+       .trim();
+  return s;
+}
 
-  function isZip(name){ return name.toLowerCase().endsWith('.zip'); }
-  function isImage(name){ return /\.(png|jpg|jpeg|webp|bmp|tif|tiff)$/i.test(name); }
+document.getElementById('fileInput').addEventListener('change', e => {
+  tasks = Array.from(e.target.files);
+});
 
-  function setStatus(msg){ statusEl.textContent = msg; }
-  function setProgress(done, all){
-    const p = all ? Math.floor((done/all)*100) : 0;
-    bar.style.width = p + '%';
-    pct.textContent = p + '%';
-  }
-
-  function addRows(newTasks){
-    const frag = document.createDocumentFragment();
-    newTasks.forEach(t => {
-      const tr = document.createElement('tr');
-      tr.id = `row-${t.id}`;
-      tr.innerHTML = `
-        <td class="num">${t.id+1}</td>
-        <td class="filename">${t.name}</td>
-        <td class="text"></td>
-        <td class="conf"></td>
-        <td class="err"></td>`;
-      frag.appendChild(tr);
-    });
-    tableBody.appendChild(frag);
-  }
-
-  function clearAll(){
-    tasks = []; results = []; inProgress = 0; nextIndex = 0; paused = false; total = 0;
-    tableBody.innerHTML = '';
-    setProgress(0,1);
-    setStatus('منتظر فایل…');
-    btnStart.disabled = true; btnPause.disabled = true;
-    btnExportCSV.disabled = true; btnExportXLSX.disabled = true; btnExportJSON.disabled = true;
-  }
-
-  btnClear.addEventListener('click', clearAll);
-
-  function handleFiles(fileList){
-    const files = Array.from(fileList);
-    if(files.length === 0) return;
-    setStatus('در حال آماده‌سازی فایل‌ها…');
-
-    const zips = files.filter(f => isZip(f.name));
-    const imgs = files.filter(f => isImage(f.name));
-
-    if(zips.length){
-      Promise.all(zips.map(loadZip)).then(zipImages => {
-        const flat = zipImages.flat();
-        const all = imgs.concat(flat);
-        enqueue(all);
-      }).catch(err => {
-        console.error(err);
-        alert('خطا در خواندن ZIP: ' + err.message);
+document.getElementById('startBtn').addEventListener('click', async () => {
+  results = [];
+  const tbody = document.querySelector('#resultTable tbody');
+  tbody.innerHTML = '';
+  let idx = 1;
+  for (const file of tasks) {
+    const row = document.createElement('tr');
+    row.innerHTML = `<td>${idx}</td><td>${file.name}</td><td>در حال پردازش...</td><td></td><td></td>`;
+    tbody.appendChild(row);
+    try {
+      const res = await Tesseract.recognize(file, 'fas', {
+        logger: m => console.log(m),
+        langPath: 'https://cdn.jsdelivr.net/gh/naptha/tessdata@master/4.0.0'
       });
-    } else {
-      enqueue(imgs);
+      const words = res.data.words || [];
+      const confs = words.map(w => (typeof w.conf === 'number' ? w.conf : NaN)).filter(x => !isNaN(x) && x >= 0);
+      const avgConf = confs.length ? (confs.reduce((a, b) => a + b, 0) / confs.length) : null;
+      const text = cleanText(res.data.text || '');
+      row.cells[2].textContent = text;
+      row.cells[3].textContent = avgConf !== null ? avgConf.toFixed(1) + '%' : '';
+      results.push({ id: idx, name: file.name, text, conf: avgConf, error: '' });
+    } catch (err) {
+      row.cells[4].textContent = err.message || String(err);
+      results.push({ id: idx, name: file.name, text: '', conf: null, error: err.message || String(err) });
     }
+    idx++;
   }
+});
 
-  async function loadZip(file){
-    const buf = await file.arrayBuffer();
-    const zip = await JSZip.loadAsync(buf);
-    const imgs = [];
-    const entries = Object.values(zip.files);
-    for(const entry of entries){
-      if(entry.dir) continue;
-      if(!isImage(entry.name)) continue;
-      const blob = await entry.async('blob');
-      const f = new File([blob], entry.name, { type: blob.type });
-      imgs.push(f);
-    }
-    return imgs;
-  }
-
-  function enqueue(imgFiles){
-    const startId = tasks.length;
-    const newTasks = imgFiles.map((f, i) => ({ id: startId + i, name: f.name, file: f }));
-    tasks.push(...newTasks);
-    total = tasks.length;
-    addRows(newTasks);
-    setStatus(`${tasks.length} فایل در صف`);
-    btnStart.disabled = false; btnPause.disabled = true;
-  }
-
-  btnChoose.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
-
-  ;['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('dragover'); }));
-  ;['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('dragover'); }));
-  drop.addEventListener('drop', (e)=>{ handleFiles(e.dataTransfer.files); });
-
-  btnStart.addEventListener('click', startOCR);
-  btnPause.addEventListener('click', ()=>{ paused = !paused; btnPause.textContent = paused ? 'ادامه' : 'توقف موقت'; if(!paused) pump(); });
-
-  async function startOCR(){
-    if(!tasks.length) return;
-    btnStart.disabled = true; btnPause.disabled = false;
-    setStatus('شروع OCR…');
-    nextIndex = results.length; // در صورت ادامه مجدد
-    const workers = parseInt(concurrencyEl.value, 10) || 2;
-    inProgress = 0;
-    for(let i=0;i<workers;i++) pump();
-  }
-
-  function pump(){
-    if(paused) return;
-    if(nextIndex >= tasks.length) return;
-
-    const t = tasks[nextIndex++];
-    inProgress++;
-    processOne(t).finally(()=>{
-      inProgress--;
-      const done = results.length;
-      setProgress(done, total);
-      setStatus(`انجام شده: ${done}/${total} — در حال پردازش: ${inProgress}`);
-      if(done === total){
-        setStatus('تمام شد');
-        btnPause.disabled = true;
-        btnExportCSV.disabled = false; btnExportXLSX.disabled = false; btnExportJSON.disabled = false;
-      } else {
-        pump();
-      }
-    });
-  }
-
-  function cleanText(str){
-    if(!str) return '';
-    const mode = cleanupEl.value;
-    let s = String(str).replace(/\r\n|\r|\n/g, ' ').replace(/\s+/g,' ').trim();
-    if(mode === 'aggressive'){
-      // تبدیل نیم‌فاصله‌های عجیب و حذف فاصله‌های تکراری علائم
-      s = s.replace(/\u200c/g, '\u200c')
-           .replace(/ ?([،,:;؛\.\!\?]) ?/g, '$1 ')
-           .replace(/\s{2,}/g, ' ')
-           .trim();
-    }
-    return s;
-  }
-
-  async function processOne(task){
-    const row = document.getElementById(`row-${task.id}`);
-    const textCell = row.querySelector('.text');
-    const confCell = row.querySelector('.conf');
-    const errCell = row.querySelector('.err');
-
-    try{
-      const { createWorker } = Tesseract;
-      // یک worker مشترک سراسری نداریم تا موازی‌سازی واقعی داشته باشیم؛
-      // ولی برای ساده‌سازی، از recognize مستقیم استفاده می‌کنیم:
-      const res = await Tesseract.recognize(task.file, 'fas', {
-        logger: m => {
-          if(m.status === 'recognizing text'){
-            textCell.textContent = '… در حال شناسایی (' + Math.round(m.progress*100) + '%)';
-          }
-        },
-        // مسیر فایل‌های زبان
-        langPath: 'https://tessdata.projectnaptha.com/4.0.0',
-        // corePath می‌تواند از CDN بارگذاری شود؛ تسرکت خودش مدیریت می‌کند.
-      });
-
-      const words = (res?.data?.words)||[];
-      const confs = words.map(w => (typeof w.conf === 'number' ? w.conf : NaN)).filter(x => !isNaN(x) && x>=0);
-      const avgConf = confs.length ? (confs.reduce((a,b)=>a+b,0)/confs.length) : null;
-
-      const text = cleanText(res?.data?.text || '');
-      textCell.textContent = text;
-      confCell.textContent = avgConf!==null ? (avgConf.toFixed(1) + '%') : '—';
-
-      results.push({ id: task.id, name: task.name, text, conf: avgConf, error: null });
-    } catch(err){
-      console.error(err);
-      errCell.textContent = err.message || String(err);
-      results.push({ id: task.id, name: task.name, text:'', conf:null, error: err.message||String(err) });
-    }
-  }
-
-  function toCSV(rows){
-    const header = ['index','file','text','confidence','error'];
-    const lines = [header.join(',')];
-    rows.sort((a,b)=>a.id-b.id).forEach(r => {
-      const rec = [r.id+1, r.name, r.text, r.conf!=null? r.conf.toFixed(1):'', r.error||''];
-      const esc = rec.map(v => '"' + String(v).replace(/"/g,'""') + '"');
-      lines.push(esc.join(','));
-    });
-    return lines.join('\n');
-  }
-
-  function downloadBlob(data, filename, type){
-    const blob = new Blob([data], {type});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    a.click();
-    setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
-  }
-
-  btnExportCSV.addEventListener('click', ()=>{
-    const csv = toCSV(results);
-    downloadBlob(csv, 'ocr_results.csv', 'text/csv;charset=utf-8');
-  });
-
-  btnExportJSON.addEventListener('click', ()=>{
-    const json = JSON.stringify(results.sort((a,b)=>a.id-b.id), null, 2);
-    downloadBlob(json, 'ocr_results.json', 'application/json');
-  });
-
-  btnExportXLSX.addEventListener('click', ()=>{
-    const ordered = results.sort((a,b)=>a.id-b.id).map(r => ({
-      index: r.id+1,
-      file: r.name,
-      text: r.text,
-      confidence: r.conf!=null? Number(r.conf.toFixed(1)) : '',
-      error: r.error || ''
-    }));
-    const ws = XLSX.utils.json_to_sheet(ordered);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'OCR');
-    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    downloadBlob(wbout, 'ocr_results.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  });
-
-})();
+document.getElementById('exportXLSX').addEventListener('click', () => {
+  const ordered = results.map(r => ({
+    index: r.id,
+    file: r.name,
+    text: r.text,
+    confidence: r.conf != null ? Number(r.conf.toFixed(1)) : '',
+    error: r.error || ''
+  }));
+  const ws = XLSX.utils.json_to_sheet(ordered, { header: ['index', 'file', 'text', 'confidence', 'error'] });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'OCR');
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'ocr_results.xlsx';
+  a.click();
+  URL.revokeObjectURL(url);
+});
 </script>
 </body>
 </html>
