@@ -3,19 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>استخراج پاسخ‌ها و خروجی اکسل فارسی</title>
+  <title>استخراج و تحلیل پاسخ‌های فارسی</title>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
-  <h1>استخراج پاسخ‌ها و خروجی اکسل فارسی</h1>
+  <h1>استخراج پاسخ‌های استوری اینستاگرام + تحلیل دغدغه‌ها</h1>
   <input id="fileInput" type="file" accept="image/*" multiple>
   <button id="startBtn">شروع OCR</button>
   <button id="downloadXLSX">دانلود اکسل</button>
+  <button id="analyzeBtn">تحلیل دغدغه‌ها</button>
   <ul id="resultList"></ul>
-  
+  <div id="analysis"></div>
+
   <script>
     const state = { files: [], results: [] };
+
     document.getElementById('fileInput').addEventListener('change', e => {
       state.files = Array.from(e.target.files);
     });
@@ -26,8 +29,8 @@
       for (const file of state.files) {
         const base64 = await fileToDataURL(file);
         const { data: { text } } = await worker.recognize(base64);
-        const cleaned = text.replace(/\s+/g, ' ').trim();
-        if (cleaned) state.results.push(cleaned);
+        const cleanedLines = text.split(/\n+/).map(t => t.trim()).filter(Boolean);
+        cleanedLines.forEach(line => state.results.push(line));
       }
       await worker.terminate();
       renderResults();
@@ -54,6 +57,43 @@
       XLSX.utils.book_append_sheet(wb, ws, 'پاسخ‌ها');
       XLSX.writeFile(wb, 'pasokhha.xlsx', { compression: true });
     });
+
+    document.getElementById('analyzeBtn').addEventListener('click', () => {
+      if (!state.results.length) {
+        alert('هیچ پاسخی برای تحلیل وجود ندارد');
+        return;
+      }
+      const topics = analyzeTopics(state.results);
+      displayAnalysis(topics);
+    });
+
+    function analyzeTopics(responses) {
+      const categories = {
+        روابط: ['رابطه', 'دوست', 'ازدواج', 'عشق', 'همسر'],
+        مالی: ['پول', 'درآمد', 'کار', 'حقوق', 'بدهی'],
+        شغلی: ['شغل', 'بیکار', 'کار', 'مدیر', 'استخدام'],
+        سلامتی: ['سلامت', 'بیماری', 'درد', 'پزشک', 'ورزش'],
+        شخصی: ['اعتماد', 'آرامش', 'ترس', 'استرس', 'هدف']
+      };
+      const counts = {};
+      responses.forEach(res => {
+        for (const [cat, keywords] of Object.entries(categories)) {
+          if (keywords.some(k => res.includes(k))) {
+            counts[cat] = (counts[cat] || 0) + 1;
+          }
+        }
+      });
+      return counts;
+    }
+
+    function displayAnalysis(counts) {
+      const container = document.getElementById('analysis');
+      container.innerHTML = '<h2>نتایج تحلیل</h2>';
+      const table = document.createElement('table');
+      table.innerHTML = '<tr><th>دسته‌بندی</th><th>تعداد</th></tr>' +
+        Object.entries(counts).map(([cat, count]) => `<tr><td>${cat}</td><td>${count}</td></tr>`).join('');
+      container.appendChild(table);
+    }
 
     function fileToDataURL(file) {
       return new Promise(res => {
