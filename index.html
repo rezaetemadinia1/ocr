@@ -29,8 +29,14 @@
       for (const file of state.files) {
         const base64 = await fileToDataURL(file);
         const { data: { text } } = await worker.recognize(base64);
-        const cleanedLines = text.split(/\n+/).map(t => t.trim()).filter(Boolean);
-        cleanedLines.forEach(line => state.results.push(line));
+        // جدا کردن پاسخ‌ها به صورت خط‌به‌خط، هر باکس جداگانه
+        const lines = text.split(/\n+/).map(t => t.trim()).filter(Boolean);
+        lines.forEach(line => {
+          // حذف خطوطی که به نظر میاد سوال یا نام کاربری هستند
+          if (!/reply/i.test(line) && !/^@/.test(line) && line.length > 1) {
+            state.results.push(line);
+          }
+        });
       }
       await worker.terminate();
       renderResults();
