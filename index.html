@@ -3,435 +3,65 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>استخراج پاسخ‌های فارسی + تحلیل دغدغه‌ها (کاملاً آفلاین)</title>
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="preconnect" href="https://unpkg.com" crossorigin>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css">
+  <title>استخراج پاسخ‌ها و خروجی اکسل فارسی</title>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <style>
-    :root{--bg:#0b0b0f;--card:#151521;--muted:#9aa1ac;--accent:#7c3aed;--accent2:#22d3ee;--ok:#22c55e;--warn:#f59e0b;--err:#ef4444;--text:#e5e7eb}
-    *{box-sizing:border-box}
-    body{margin:0;background:linear-gradient(180deg,#0b0b0f 0%,#0e1220 100%);font-family:Vazirmatn,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; color:var(--text)}
-    @font-face{font-family:Vazirmatn;src:url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn/Vazirmatn-UI-FD.ttf') format('truetype');font-display:swap}
-    .wrap{max-width:1100px;margin:24px auto;padding:16px}
-    header{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}
-    .brand{display:flex;gap:10px;align-items:center}
-    .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center}
-    .logo i{font-size:22px;color:#fff}
-    h1{margin:0;font-size:18px;letter-spacing:.2px}
-    .tabs{display:flex;gap:8px;flex-wrap:wrap}
-    .tab{padding:10px 14px;border:1px solid #2a2f3c;border-radius:12px;background:#0f1220;cursor:pointer}
-    .tab.active{border-color:transparent;background:linear-gradient(135deg,#181b2d 0%,#101425 100%);outline:1px solid #2a2f3c}
-    .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}
-    .card{background:radial-gradient(1000px 500px at -10% -20%,rgba(124,58,237,.15),transparent),radial-gradient(900px 450px at 120% 140%,rgba(34,211,238,.12),transparent),var(--card);border:1px solid #23283a;border-radius:16px;padding:14px}
-    .card h2{margin:0 0 12px;font-size:16px}
-    .muted{color:var(--muted);font-size:13px}
-    .drop{border:2px dashed #334155;border-radius:14px;padding:18px;text-align:center;cursor:pointer;background:#0d1020}
-    .drop.drag{border-color:var(--accent)}
-    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    button{appearance:none;border:0;border-radius:12px;padding:10px 14px;background:linear-gradient(135deg,#2a2f3c,#1b2030);color:#fff;cursor:pointer}
-    button.primary{background:linear-gradient(135deg,#7c3aed,#3b82f6)}
-    button.good{background:linear-gradient(135deg,#16a34a,#22d3ee)}
-    button.warn{background:linear-gradient(135deg,#f59e0b,#ef4444)}
-    button.ghost{background:#101425;border:1px solid #2a2f3c}
-    input[type="file"]{display:none}
-    .list{max-height:340px;overflow:auto;border:1px solid #23283a;border-radius:12px}
-    .item{display:grid;grid-template-columns:76px 1fr;gap:10px;padding:10px;border-bottom:1px solid #202437}
-    .thumb{width:76px;height:76px;object-fit:cover;border-radius:10px;border:1px solid #2a2f3c}
-    textarea{width:100%;min-height:76px;background:#0c1020;color:var(--text);border:1px solid #243047;border-radius:10px;padding:8px;resize:vertical}
-    progress{width:100%;height:8px;border-radius:999px;overflow:hidden}
-    progress::-webkit-progress-bar{background:#1f2437}
-    progress::-webkit-progress-value{background:linear-gradient(90deg,var(--accent),var(--accent2))}
-    table{width:100%;border-collapse:collapse}
-    th,td{border-bottom:1px solid #23283a;padding:8px;text-align:right}
-    .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-    .kpi .card{padding:12px}
-    .kpi h3{margin:0;font-size:24px}
-    .kpi p{margin:6px 0 0;font-size:12px;color:var(--muted)}
-    .flex{display:flex;gap:8px;align-items:center}
-    .pill{font-size:12px;border:1px solid #2a2f3c;padding:6px 10px;border-radius:999px;color:#cbd5e1}
-    .footer{margin-top:14px;color:#94a3b8;font-size:12px}
-    @media(max-width:980px){.grid{grid-template-columns:1fr}}
-  </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div class="brand">
-        <div class="logo"><i class="mdi mdi-ocr"></i></div>
-        <div>
-          <h1>استخراج پاسخ‌های استوری اینستاگرام (OCR فارسی) + تحلیل دغدغه‌ها</h1>
-          <div class="muted">همه چیز داخل مرورگر شما اجرا می‌شود (بدون سرور). مناسب گیت‌هاب‌پیجز.</div>
-        </div>
-      </div>
-      <div class="tabs" id="tabs">
-        <div class="tab active" data-tab="ocr">۱) استخراج متون</div>
-        <div class="tab" data-tab="review">۲) مرور و خروجی اکسل</div>
-        <div class="tab" data-tab="analyze">۳) تحلیل دغدغه‌ها</div>
-        <div class="tab" data-tab="help">راهنما</div>
-      </div>
-    </header>
+  <h1>استخراج پاسخ‌ها و خروجی اکسل فارسی</h1>
+  <input id="fileInput" type="file" accept="image/*" multiple>
+  <button id="startBtn">شروع OCR</button>
+  <button id="downloadXLSX">دانلود اکسل</button>
+  <ul id="resultList"></ul>
+  
+  <script>
+    const state = { files: [], results: [] };
+    document.getElementById('fileInput').addEventListener('change', e => {
+      state.files = Array.from(e.target.files);
+    });
 
-    <!-- OCR TAB -->
-    <section class="grid" data-pane="ocr">
-      <div class="card">
-        <h2>انتخاب عکس‌ها</h2>
-        <label class="drop" id="drop">
-          <input id="fileInput" type="file" accept="image/*" multiple>
-          <div class="muted">عکس‌های اسکرین‌شات پاسخ‌ها را اینجا رها کنید یا کلیک کنید</div>
-          <div class="row" style="justify-content:center;margin-top:10px">
-            <button class="ghost" onclick="document.getElementById('fileInput').click()"><i class="mdi mdi-upload"></i> افزودن فایل</button>
-            <span class="pill" id="queueInfo">۰ فایل در صف</span>
-          </div>
-        </label>
-        <div style="margin-top:12px" class="row">
-          <label class="flex pill"><input id="preEnhance" type="checkbox" style="margin-left:8px"> پیش‌پردازش تصویری (کنتراست/سیاه‌سفید)</label>
-          <label class="flex pill"><input id="dualLang" type="checkbox" style="margin-left:8px" checked> تشخیص همزمان «فارسی+انگلیسی»</label>
-          <label class="flex pill"><input id="dedupe" type="checkbox" style="margin-left:8px" checked> حذف پاسخ‌های تکراری</label>
-        </div>
-        <div class="row" style="margin-top:10px">
-          <button class="primary" id="startBtn"><i class="mdi mdi-play"></i> شروع OCR</button>
-          <button class="ghost" id="clearBtn"><i class="mdi mdi-trash-can"></i> تخلیه صف</button>
-        </div>
-        <div style="margin-top:12px">
-          <progress id="globalProg" value="0" max="100"></progress>
-          <div class="muted" id="status">منتظر شروع…</div>
-        </div>
-      </div>
-      <div class="card">
-        <h2>پیش‌نمایش صف</h2>
-        <div class="list" id="queueList"></div>
-      </div>
-    </section>
+    document.getElementById('startBtn').addEventListener('click', async () => {
+      state.results = [];
+      const worker = await Tesseract.createWorker('fas', 1);
+      for (const file of state.files) {
+        const base64 = await fileToDataURL(file);
+        const { data: { text } } = await worker.recognize(base64);
+        const cleaned = text.replace(/\s+/g, ' ').trim();
+        if (cleaned) state.results.push(cleaned);
+      }
+      await worker.terminate();
+      renderResults();
+    });
 
-    <!-- REVIEW TAB -->
-    <section class="grid" data-pane="review" hidden>
-      <div class="card">
-        <h2>نتایج استخراج‌شده</h2>
-        <div class="list" id="resultList"></div>
-      </div>
-      <div class="card">
-        <h2>خروجی و ذخیره‌سازی</h2>
-        <div class="row">
-          <button class="good" id="downloadXLSX"><i class="mdi mdi-file-excel"></i> دانلود اکسل</button>
-          <button class="ghost" id="downloadCSV"><i class="mdi mdi-file-delimited"></i> دانلود CSV</button>
-          <span class="pill" id="countBadge">۰ پاسخ</span>
-        </div>
-        <div class="footer">ساختار خروجی: ستون‌های <b>id</b>، <b>متن</b>، <b>تصویر</b> (Base64)، <b>زمان</b>.</div>
-      </div>
-    </section>
+    function renderResults() {
+      const list = document.getElementById('resultList');
+      list.innerHTML = '';
+      state.results.forEach(t => {
+        const li = document.createElement('li');
+        li.textContent = t;
+        list.appendChild(li);
+      });
+    }
 
-    <!-- ANALYZE TAB -->
-    <section class="grid" data-pane="analyze" hidden>
-      <div class="card">
-        <h2>ورودی تحلیل</h2>
-        <div class="row">
-          <button class="ghost" onclick="document.getElementById('excelIn').click()"><i class="mdi mdi-upload"></i> آپلود اکسل/CSV</button>
-          <input id="excelIn" type="file" accept=".xlsx,.xls,.csv" hidden>
-          <button class="primary" id="useCurrent"><i class="mdi mdi-database"></i> تحلیل همین نتایج فعلی</button>
-        </div>
-        <div class="row" style="margin-top:10px">
-          <label class="flex pill"><input id="useBigrams" type="checkbox" style="margin-left:8px" checked> تحلیل عبارت‌های ۲کلمه‌ای</label>
-          <label class="flex pill"><input id="useTrigrams" type="checkbox" style="margin-left:8px"> ۳کلمه‌ای</label>
-          <label class="flex pill"><input id="lemmatize" type="checkbox" style="margin-left:8px" checked> نرمال‌سازی فارسی</label>
-        </div>
-        <div class="row" style="margin-top:10px">
-          <input id="customKeywords" placeholder="کلیدواژه‌های مهمِ شما (با , جدا کنید)" style="flex:1;background:#0c1020;color:#cbd5e1;border:1px solid #243047;border-radius:10px;padding:10px">
-          <button id="runAnalysis" class="good"><i class="mdi mdi-finance"></i> شروع تحلیل</button>
-        </div>
-      </div>
-      <div class="card">
-        <h2>نتایج تحلیل</h2>
-        <div class="kpi">
-          <div class="card"><h3 id="kTotal">0</h3><p>تعداد کل پاسخ‌ها</p></div>
-          <div class="card"><h3 id="kUnique">0</h3><p>پاسخ یکتا پس از حذف تکراری</p></div>
-          <div class="card"><h3 id="kAvgLen">0</h3><p>میانگین طول پاسخ (کلمه)</p></div>
-          <div class="card"><h3 id="kTopKW">—</h3><p>پُرتکرارترین کلیدواژه</p></div>
-        </div>
-        <div style="margin-top:12px">
-          <canvas id="barTop" height="220"></canvas>
-        </div>
-        <div style="margin-top:12px">
-          <table id="tblTop"></table>
-        </div>
-      </div>
-    </section>
+    document.getElementById('downloadXLSX').addEventListener('click', () => {
+      if (!state.results.length) {
+        alert('هیچ پاسخی برای خروجی وجود ندارد');
+        return;
+      }
+      const wsData = [['پاسخ'], ...state.results.map(r => [r])];
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      XLSX.utils.book_append_sheet(wb, ws, 'پاسخ‌ها');
+      XLSX.writeFile(wb, 'pasokhha.xlsx', { compression: true });
+    });
 
-    <!-- HELP TAB -->
-    <section data-pane="help" hidden>
-      <div class="card">
-        <h2>راهنمای سریع استقرار روی GitHub Pages</h2>
-        <ol>
-          <li>در گیت‌هاب یک مخزن جدید بسازید (public).</li>
-          <li>فایل همین <b>index.html</b> را داخل مخزن قرار دهید.</li>
-          <li>از Settings &rarr; Pages شاخه <b>main</b> و ریشه (<b>root</b>) را انتخاب کنید.</li>
-          <li>۱-۲ دقیقه صبر کنید؛ آدرس سایت شما فعال می‌شود.</li>
-        </ol>
-        <p class="muted">تمام پردازش‌ها داخل مرورگر کاربر انجام می‌شود؛ هیچ داده‌ای به سرور ارسال نمی‌گردد.</p>
-      </div>
-    </section>
-  </div>
-
-<script>
-// ---------------------- Utilities ----------------------
-const $ = (q)=>document.querySelector(q);
-const $$ = (q)=>document.querySelectorAll(q);
-const state = { files:[], jobs:[], results:[], dedupSet:new Set(), running:false, chart:null };
-
-const PERSIAN_STOP = new Set(`
-  و یا که از به در را این آن با برای چون اما اگر نه هم تا هر تر ترین بی یک من ما شما او آنها آنان ایشان
-  هستم هستی هست هستیم هستید هستند بودم بودی بود بودیم بودید بودند شود شوند شدن شده شده‌است باشد باشند
-  نمی شود نمی‌شود نمی‌کنم نمی‌کند نمی‌کنید نمی‌کنند نمی‌شو
-  درون بین روی زیر بالا فقط خیلی نیز همگی همه هیچ چرا کجا چگونه چطور ای کاش کاش
-  می کنم میکنم می‌کنم کنیم کنید کنند کرده کردم کردی کرد کردیم کردید کردند کن کنید کنیم
-`.split(/\s+/).filter(Boolean));
-
-function normFa(s){
-  if(!s) return '';
-  return s
-    .replace(/[\u064B-\u065F\u0670]/g,'') // diacritics
-    .replace(/[\u200c\u200f\u202a-\u202e]/g,' ') // ZWNJ/RTL marks to space
-    .replace(/[ي]/g,'ی').replace(/[ك]/g,'ک')
-    .replace(/[ـ\u0640]/g,'') // tatweel
-    .replace(/[«»\(\)\[\]{}"'.,؛؛:,!?؟…\-_/\\|]/g,' ')
-    .replace(/\s+/g,' ') // collapse spaces
-    .trim();
-}
-
-function tokenizeFa(s){
-  s = normFa(s);
-  const toks = s.split(' ').filter(w=>w && !PERSIAN_STOP.has(w));
-  return toks;
-}
-
-function ngrams(tokens,n){
-  const out = [];
-  for(let i=0;i<=tokens.length-n;i++) out.push(tokens.slice(i,i+n).join(' '));
-  return out;
-}
-
-function humanNumber(n){return n.toLocaleString('fa-IR');}
-
-// ---------------------- Tabs ----------------------
-$('#tabs').addEventListener('click', (e)=>{
-  const t = e.target.closest('.tab'); if(!t) return;
-  $$('.tab').forEach(el=>el.classList.remove('active'));
-  t.classList.add('active');
-  const id = t.dataset.tab; 
-  $$('section[data-pane]').forEach(p=>p.hidden = (p.dataset.pane!==id));
-});
-
-// ---------------------- Queue Handling ----------------------
-const drop = $('#drop');
-['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev, e=>{e.preventDefault(); drop.classList.add('drag');}));
-['dragleave','drop'].forEach(ev=>drop.addEventListener(ev, e=>{e.preventDefault(); drop.classList.remove('drag');}));
-
-drop.addEventListener('drop', e=>{ handleFiles(e.dataTransfer.files); });
-$('#fileInput').addEventListener('change', e=>{ handleFiles(e.target.files); e.target.value=''; });
-
-function handleFiles(fileList){
-  const arr = Array.from(fileList).filter(f=>f.type.startsWith('image/'));
-  state.files.push(...arr);
-  $('#queueInfo').textContent = `${state.files.length} فایل در صف`;
-  renderQueue();
-}
-
-function renderQueue(){
-  const box = $('#queueList');
-  box.innerHTML='';
-  state.files.forEach((f,idx)=>{
-    const url = URL.createObjectURL(f);
-    const el = document.createElement('div');
-    el.className='item';
-    el.innerHTML = `<img class="thumb" src="${url}">`+
-      `<div><div class="row" style="justify-content:space-between"><b>${f.name}</b>`+
-      `<button class="ghost" data-rm="${idx}"><i class='mdi mdi-close'></i> حذف</button></div>`+
-      `<div class='muted'>${(f.size/1024/1024).toFixed(2)} MB</div>`+
-      `</div>`;
-    box.appendChild(el);
-  });
-  box.querySelectorAll('[data-rm]').forEach(btn=>btn.onclick=()=>{ const i=+btn.dataset.rm; state.files.splice(i,1); renderQueue(); $('#queueInfo').textContent = `${state.files.length} فایل در صف`;});
-}
-
-$('#clearBtn').onclick = ()=>{ state.files=[]; renderQueue(); $('#queueInfo').textContent='۰ فایل در صف'; };
-
-// ---------------------- OCR Pipeline ----------------------
-$('#startBtn').onclick = startOCR;
-
-async function startOCR(){
-  if(state.running || state.files.length===0) return;
-  state.running = true; $('#status').textContent='در حال آماده‌سازی موتور OCR...';
-  const langs = $('#dualLang').checked ? 'fas+eng' : 'fas';
-
-  const worker = await Tesseract.createWorker(langs, 1, { logger: m=>{ if(m.status==='recognizing text'){ $('#status').textContent=`${(m.progress*100).toFixed(0)}% پردازش تصویر جاری`; } } });
-
-  const enhance = $('#preEnhance').checked;
-  let done = 0; state.results=[]; state.dedupSet=new Set();
-  for(const file of state.files){
-    const base64 = await fileToDataURL(file);
-    const imgSrc = enhance ? await enhanceImage(base64) : base64;
-    const { data:{ text } } = await worker.recognize(imgSrc);
-    const cleaned = postClean(text);
-    if(!cleaned) { done++; updateGlobal(done); continue; }
-    if($('#dedupe').checked){ if(state.dedupSet.has(cleaned)){ done++; updateGlobal(done); continue; } state.dedupSet.add(cleaned); }
-    state.results.push({ id: crypto.randomUUID(), text: cleaned, image: imgSrc, time: new Date().toISOString() });
-    done++; updateGlobal(done);
-  }
-  await worker.terminate();
-  state.running = false; $('#status').textContent='تمام شد. به تب «مرور و خروجی» بروید.';
-  renderResults();
-}
-
-function updateGlobal(done){
-  const val = Math.round((done/state.files.length)*100);
-  $('#globalProg').value = val; $('#status').textContent = `پردازش ${done}/${state.files.length}`;
-}
-
-function postClean(txt){
-  // حذف نویزهای رایج اینستاگرام/سیستم
-  let s = txt.replace(/\u0000/g,' ').replace(/[\r\t]/g,' ').replace(/\n+/g,'\n');
-  // حذف بلوک‌های خیلی کوتاه یا بی‌معنا
-  s = s.split('\n').map(l=>l.trim()).filter(l=>l && !/^[-–—_=+]+$/.test(l)).join(' ');
-  s = s.replace(/\s{2,}/g,' ').trim();
-  // برخی پاسخ‌ها به صورت «پاسخ: ...» یا شامل نام‌کاربری هستند؛ فقط متن را نگه داریم
-  // (در صورت نیاز می‌توان الگوهای بیشتری اضافه کرد)
-  return s;
-}
-
-function fileToDataURL(file){
-  return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(file); });
-}
-
-async function enhanceImage(base64){
-  // ساده: به سیاه‌سفید + افزایش کنتراست
-  const img = await loadImage(base64); const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d'); canvas.width = img.width; canvas.height = img.height;
-  ctx.drawImage(img,0,0);
-  const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
-  const d = imageData.data; // grayscale + contrast
-  const contrast = 1.35; const intercept = 128*(1-contrast);
-  for(let i=0;i<d.length;i+=4){
-    const g = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
-    let v = g*contrast + intercept; v = v<0?0:(v>255?255:v);
-    const b = v>160?255: (v<100?0:v); // ساخت آستانه نرم
-    d[i]=d[i+1]=d[i+2]=b; // BW
-  }
-  ctx.putImageData(imageData,0,0);
-  return canvas.toDataURL('image/png');
-}
-
-function loadImage(src){
-  return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=rej; img.src=src; });
-}
-
-// ---------------------- Review & Export ----------------------
-function renderResults(){
-  const box = $('#resultList'); box.innerHTML='';
-  state.results.forEach((r,idx)=>{
-    const el = document.createElement('div'); el.className='item';
-    el.innerHTML = `<img class='thumb' src='${r.image}'>`+
-      `<div><div class='row' style='justify-content:space-between'><b>#${idx+1}</b>`+
-      `<span class='muted'>${new Date(r.time).toLocaleString('fa-IR')}</span></div>`+
-      `<textarea data-id='${r.id}'>${r.text}</textarea></div>`;
-    box.appendChild(el);
-  });
-  box.querySelectorAll('textarea').forEach(t=>t.oninput = ()=>{
-    const id = t.dataset.id; const obj = state.results.find(x=>x.id===id); if(obj) obj.text = t.value.trim();
-  });
-  $('#countBadge').textContent = `${state.results.length} پاسخ`;
-}
-
-$('#downloadXLSX').onclick = ()=>{
-  const wsData = [['id','متن','تصویر','زمان']];
-  state.results.forEach(r=>wsData.push([r.id,r.text,r.image,r.time]));
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-  XLSX.utils.book_append_sheet(wb, ws, 'responses');
-  XLSX.writeFile(wb, 'responses_fa.xlsx');
-};
-$('#downloadCSV').onclick = ()=>{
-  const rows = [['id','متن','تصویر','زمان'], ...state.results.map(r=>[r.id,r.text,r.image,r.time])];
-  const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-  downloadFile('responses_fa.csv', csv, 'text/csv;charset=utf-8;');
-};
-function downloadFile(name, content, type){
-  const blob = new Blob([content], {type}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click();
-}
-
-// ---------------------- Analysis ----------------------
-let analysisTexts = [];
-$('#excelIn').addEventListener('change', handleExcel);
-$('#useCurrent').onclick = ()=>{ analysisTexts = state.results.map(r=>r.text); alert('نتایج فعلی برای تحلیل انتخاب شد.'); };
-$('#runAnalysis').onclick = runAnalysis;
-
-async function handleExcel(e){
-  const f = e.target.files[0]; if(!f) return;
-  const data = await f.arrayBuffer();
-  const wb = XLSX.read(data, {type:'array'});
-  const first = wb.SheetNames[0]; const ws = wb.Sheets[first];
-  const json = XLSX.utils.sheet_to_json(ws, {header:1});
-  // جست‌وجوی ستونی به نام «متن» یا ستون دوم
-  let idxCol = -1; if(json[0]){
-    idxCol = json[0].findIndex(h=>/متن|text|reply/i.test(String(h||'')));
-  }
-  const rows = json.slice(1);
-  analysisTexts = rows.map(r=>String(r[idxCol>=0?idxCol:1]||'').trim()).filter(Boolean);
-  alert(`${analysisTexts.length} پاسخ از فایل خوانده شد.`);
-  e.target.value='';
-}
-
-function runAnalysis(){
-  if(!analysisTexts.length){ alert('ابتدا اکسل/CSV بارگذاری کنید یا «تحلیل همین نتایج فعلی» را بزنید.'); return; }
-  const big = $('#useBigrams').checked, tri = $('#useTrigrams').checked;
-  const kws = $('#customKeywords').value.split(',').map(s=>normFa(s.trim())).filter(Boolean);
-  const seen = new Set();
-
-  // پیش‌پردازش + محاسبه آماره‌ها
-  const cleanTexts = [];
-  for(const t of analysisTexts){
-    const s = normFa(t); if(!s) continue; if(seen.has(s)) continue; seen.add(s); cleanTexts.push(s);
-  }
-
-  const lengths = cleanTexts.map(t=>tokenizeFa(t).length);
-  const total = analysisTexts.length; const unique = cleanTexts.length;
-  $('#kTotal').textContent = humanNumber(total);
-  $('#kUnique').textContent = humanNumber(unique);
-  $('#kAvgLen').textContent = (lengths.reduce((a,b)=>a+b,0)/Math.max(1,lengths.length)).toFixed(1);
-
-  // فراوانی توکن‌ها / n-gram
-  const freq = new Map();
-  for(const t of cleanTexts){
-    const toks = tokenizeFa(t);
-    toks.forEach(w=>freq.set(w,(freq.get(w)||0)+1));
-    if(big) ngrams(toks,2).forEach(g=>freq.set(g,(freq.get(g)||0)+1));
-    if(tri) ngrams(toks,3).forEach(g=>freq.set(g,(freq.get(g)||0)+1));
-  }
-
-  // تمرکز روی کلیدواژه‌های کاربر در صورت وجود
-  if(kws.length){
-    const f2 = new Map();
-    for(const [k,v] of freq){ if(kws.some(kw=>k.includes(kw))) f2.set(k,v); }
-    if(f2.size) freq.clear(), f2.forEach((v,k)=>freq.set(k,v));
-  }
-
-  const top = [...freq.entries()].sort((a,b)=>b[1]-a[1]).slice(0,25);
-  $('#kTopKW').textContent = top[0]?.[0]||'—';
-
-  // جدول
-  const tbl = $('#tblTop');
-  tbl.innerHTML = `<thead><tr><th>رتبه</th><th>عبارت</th><th>فراوانی</th></tr></thead>`+
-                  `<tbody>${top.map((r,i)=>`<tr><td>${i+1}</td><td>${r[0]}</td><td>${humanNumber(r[1])}</td></tr>`).join('')}</tbody>`;
-
-  // نمودار
-  const labels = top.map(r=>r[0]); const data = top.map(r=>r[1]);
-  if(state.chart) state.chart.destroy();
-  const ctx = document.getElementById('barTop');
-  state.chart = new Chart(ctx, { type:'bar', data:{ labels, datasets:[{label:'فراوانی', data}] }, options:{
-    indexAxis:'y', plugins:{ legend:{display:false}}, scales:{ x:{ ticks:{color:'#cbd5e1'}}, y:{ ticks:{color:'#cbd5e1'} } }
-  }});
-}
-</script>
+    function fileToDataURL(file) {
+      return new Promise(res => {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.readAsDataURL(file);
+      });
+    }
+  </script>
 </body>
 </html>
