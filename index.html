@@ -233,7 +233,17 @@ function median(arr){ if(!arr.length) return 0; const a=[...arr].sort((x,y)=>x-y
 // ===== Review/Export =====
 function renderResults(){ const box=$('#rlist'); box.innerHTML=''; state.responses.forEach((t,i)=>{ const el=document.createElement('div'); el.className='item'; el.innerHTML=`<div style="grid-column:1/span 2"><b>#${i+1}</b><textarea data-i='${i}'>${t}</textarea></div>`; box.appendChild(el); }); box.querySelectorAll('textarea').forEach(t=>t.oninput=()=>{ const i=+t.dataset.i; state.responses[i]=t.value; }); $('#rcount').textContent = state.responses.length + ' پاسخ'; }
 
-$('#dlXLSX').onclick = ()=>{ if(!state.responses.length){ alert('چیزی برای خروجی نیست'); return; } const ws=XLSX.utils.aoa_to_sheet([['پاسخ'], ...state.responses.map(t=>[t])]); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'پاسخ‌ها'); XLSX.writeFile(wb, 'pasokhha.xlsx', {compression:true}); };
+
+
+$('#dlXLSX').onclick = ()=>{
+  if(!state.responses.length){ alert('چیزی برای خروجی نیست'); return; }
+  const data = state.responses.map(t => [t]); // هر پاسخ در یک ستون
+  const ws = XLSX.utils.aoa_to_sheet([["پاسخ"], ...data]);
+  ws['!cols'] = [{ wch: 50 }]; // عرض ستون
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'پاسخ‌ها');
+  XLSX.writeFile(wb, 'pasokhha.xlsx', { bookType: 'xlsx', compression: true, cellStyles: true });
+};
 $('#dlCSV').onclick = ()=>{ if(!state.responses.length){ alert('چیزی برای خروجی نیست'); return; } const rows=[['\ufeffپاسخ'], ...state.responses.map(t=>[t])]; const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n'); const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pasokhha.csv'; a.click(); };
 
 // ===== Analysis =====
