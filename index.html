@@ -1,86 +1,297 @@
 <!doctype html>
 <html lang="fa" dir="rtl">
 <head>
-<meta charset="utf-8" />
-<title>OCR فارسی انبوه</title>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OCR فارسی انبوه (بدون سرور) — نسخه نهایی با برش خودکار</title>
+  <!-- Tesseract.js (browser) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+  <!-- SheetJS for Excel/CSV export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- JSZip to accept ZIP uploads -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <style>
+    :root { --bg:#0b0f14; --card:#121821; --muted:#92a0b3; --text:#e6eef7; --accent:#5cc8ff; --ok:#41d392; --warn:#ffb454; }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;background:var(--bg);color:var(--text)}
+    header{padding:24px;text-align:center;border-bottom:1px solid #1d2530}
+    h1{margin:0;font-size:clamp(18px,3vw,28px);letter-spacing:.2px}
+    main{max-width:1200px;margin:20px auto;padding:0 16px 120px}
+    .card{background:var(--card);border:1px solid #1d2530;border-radius:18px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .grid{display:grid;gap:14px;grid-template-columns:1fr}
+    @media (min-width:1050px){.grid{grid-template-columns:1.1fr .9fr}}
+    .dropzone{border:2px dashed #2a3545;border-radius:18px;padding:22px;text-align:center;transition:.2s}
+    .dropzone.dragover{border-color:var(--accent);background:#0f1621}
+    .dropzone input{display:none}
+    .muted{color:var(--muted);font-size:13px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .btn{background:#152032;color:#e7f1ff;border:1px solid #2a3545;padding:10px 14px;border-radius:12px;cursor:pointer;transition:.15s;font-weight:600}
+    .btn:hover{border-color:var(--accent);box-shadow:0 0 0 2px rgba(92,200,255,.15) inset}
+    .btn.secondary{background:#0d131c}
+    .btn.warn{border-color:var(--warn);color:#ffe2b3}
+    .btn.ok{border-color:var(--ok);color:#d6ffe9}
+    .controls{display:grid;gap:10px;grid-template-columns:repeat(3,minmax(0,1fr))}
+    .controls label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+    .controls input,.controls select{width:100%;background:#0d131c;border:1px solid #263145;color:var(--text);padding:10px 12px;border-radius:10px}
+    .progress-wrap{margin-top:12px}
+    .progress{height:10px;background:#0d131c;border:1px solid #263145;border-radius:8px;overflow:hidden}
+    .bar{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),#9be7ff);transition:width .25s}
+    .table-wrap{margin-top:16px;border:1px solid #253046;border-radius:14px;overflow:hidden}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{padding:10px 12px;border-bottom:1px solid #1e2737;vertical-align:top}
+    th{background:#0d141e;color:#b5c6de;position:sticky;top:0;z-index:1}
+    tbody tr:nth-child(odd) td{background:#0c1119}
+    .num{text-align:center;color:#cbd7e7}
+    .filename{color:#cfe6ff;word-break:break-all}
+    .conf{color:#9fe9c3;font-weight:600}
+    .err{color:#ffb8b8}
+    footer{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(11,15,20,0) 0%,rgba(11,15,20,.95) 40%,rgba(11,15,20,1) 100%);padding:16px}
+    .footer-bar{max-width:1200px;margin:0 auto;display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;align-items:center}
+    .hint{font-size:12px;color:#b6c6dc}
+  </style>
 </head>
 <body>
-<input type="file" id="fileInput" multiple accept="image/*,.zip" />
-<button id="startBtn">شروع OCR</button>
-<button id="exportXLSX">خروجی Excel</button>
-<table border="1" id="resultTable">
-<thead><tr><th>ردیف</th><th>نام فایل</th><th>متن</th><th>اطمینان</th><th>خطا</th></tr></thead>
-<tbody></tbody>
-</table>
+  <header>
+    <h1>OCR فارسی انبوه — نسخه نهایی (برش خودکار تصویر بلند)</h1>
+    <div class="muted">تصاویر یا فایل ZIP را اینجا رها کنید؛ متن استخراج می‌شود و خروجی CSV/XLSX می‌گیرید. مناسب cPanel/GitHub Pages (فقط یک فایل HTML).</div>
+  </header>
+
+  <main class="grid">
+    <section class="card">
+      <h2 style="margin:6px 0 14px">ورود فایل‌ها</h2>
+      <div id="dropzone" class="dropzone">
+        <p style="margin:0 0 6px">فایل‌ها را اینجا بکشید و رها کنید</p>
+        <div class="muted">تصویرهای .png .jpg .jpeg .webp .bmp .tif .tiff یا بسته .zip</div>
+        <div style="margin-top:10px"><button class="btn" id="btnChoose">انتخاب فایل…</button></div>
+        <input id="fileInput" type="file" multiple accept="image/*,.zip" />
+      </div>
+
+      <div style="margin-top:16px" class="controls">
+        <div>
+          <label>تعداد پردازش همزمان (Workers)</label>
+          <select id="concurrency">
+            <option>1</option><option selected>2</option><option>3</option><option>4</option><option>6</option><option>8</option>
+          </select>
+        </div>
+        <div>
+          <label>پاکسازی متن</label>
+          <select id="cleanup">
+            <option value="minimal">حداقلی</option>
+            <option value="aggressive" selected>تهاجمی</option>
+          </select>
+        </div>
+        <div>
+          <label>برش خودکار تصویر بلند</label>
+          <select id="slicingMode">
+            <option value="off">خاموش</option>
+            <option value="auto" selected>خودکار (پیشنهادی)</option>
+            <option value="fixed">ارتفاع ثابت</option>
+          </select>
+        </div>
+        <div>
+          <label>حداقل ضخامت ناحیه سفید برای برش (پیکسل)</label>
+          <input id="minGap" type="number" value="18" />
+        </div>
+        <div>
+          <label>حداکثر ارتفاع هر قطعه (پیکسل)</label>
+          <input id="maxSliceH" type="number" value="900" />
+        </div>
+        <div>
+          <label>ارتفاع ثابت (در حالت ارتفاع ثابت)</label>
+          <input id="fixedH" type="number" value="640" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <button class="btn ok" id="btnStart" disabled>شروع OCR</button>
+        <button class="btn warn" id="btnPause" disabled>توقف موقت</button>
+        <button class="btn secondary" id="btnClear">پاک‌سازی لیست</button>
+      </div>
+
+      <div class="progress-wrap">
+        <div class="row" style="justify-content:space-between">
+          <div class="muted">وضعیت: <span id="status">منتظر فایل…</span></div>
+          <div class="muted">پیشرفت کلی: <span id="pct">0%</span></div>
+        </div>
+        <div class="progress"><div class="bar" id="bar"></div></div>
+      </div>
+      <div class="hint" style="margin-top:10px">نکته: برای عکس‌های خیلی بلند، حالت «برش خودکار» روشن باشد. مرز برش بر اساس ردیف‌های سفید/خالی تشخیص داده می‌شود. اگر خروجی به هم چسبیده بود، حالت «ارتفاع ثابت» را با عدد نزدیک به ارتفاع هر کارت انتخاب کنید.</div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin:6px 0 14px">خروجی</h2>
+      <div class="row" style="margin-bottom:10px">
+        <button class="btn" id="btnExportCSV" disabled>خروجی CSV</button>
+        <button class="btn" id="btnExportXLSX" disabled>خروجی Excel (XLSX)</button>
+        <button class="btn secondary" id="btnExportJSON" disabled>خروجی JSON</button>
+      </div>
+      <div class="table-wrap" style="max-height: 520px; overflow:auto">
+        <table id="table">
+          <thead>
+            <tr>
+              <th style="width:64px">#</th>
+              <th>نام فایل</th>
+              <th>بخش</th>
+              <th>متن</th>
+              <th style="width:120px">میانگین اطمینان</th>
+              <th style="width:160px">خطا</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-bar">
+      <div class="muted">زبان OCR: فارسی (fas). اجرای کامل در مرورگر شما. مسیر دیتای زبان از CDN با fallback.</div>
+      <div class="muted">برای دقت بهتر: تصاویر واضح، کنتراست خوب، متن بدون استیکر/استروک ضخیم.</div>
+    </div>
+  </footer>
+
 <script>
-let tasks = [];
-let results = [];
+(function(){
+  const drop = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const btnChoose = document.getElementById('btnChoose');
+  const btnStart = document.getElementById('btnStart');
+  const btnPause = document.getElementById('btnPause');
+  const btnClear = document.getElementById('btnClear');
+  const btnExportCSV = document.getElementById('btnExportCSV');
+  const btnExportXLSX = document.getElementById('btnExportXLSX');
+  const btnExportJSON = document.getElementById('btnExportJSON');
+  const tableBody = document.querySelector('#table tbody');
+  const statusEl = document.getElementById('status');
+  const bar = document.getElementById('bar');
+  const pct = document.getElementById('pct');
+  const concurrencyEl = document.getElementById('concurrency');
+  const cleanupEl = document.getElementById('cleanup');
+  const slicingModeEl = document.getElementById('slicingMode');
+  const minGapEl = document.getElementById('minGap');
+  const maxSliceHEl = document.getElementById('maxSliceH');
+  const fixedHEl = document.getElementById('fixedH');
 
-function cleanText(str) {
-  if (!str) return '';
-  let s = String(str).replace(/\r\n|\r|\n/g, ' ').replace(/\s+/g, ' ').trim();
-  s = s.replace(/\u200c/g, '\u200c')
-       .replace(/ ?([،,:;؛\.\!\?]) ?/g, '$1 ')
-       .replace(/\s{2,}/g, ' ')
-       .trim();
-  return s;
-}
+  let tasks = []; // { id, name, file, part }
+  let results = []; // { id, name, part, text, conf, error }
+  let inProgress = 0, nextIndex = 0, paused = false, total = 0;
 
-document.getElementById('fileInput').addEventListener('change', e => {
-  tasks = Array.from(e.target.files);
-});
-
-document.getElementById('startBtn').addEventListener('click', async () => {
-  results = [];
-  const tbody = document.querySelector('#resultTable tbody');
-  tbody.innerHTML = '';
-  let idx = 1;
-  for (const file of tasks) {
-    const row = document.createElement('tr');
-    row.innerHTML = `<td>${idx}</td><td>${file.name}</td><td>در حال پردازش...</td><td></td><td></td>`;
-    tbody.appendChild(row);
-    try {
-      const res = await Tesseract.recognize(file, 'fas', {
-        logger: m => console.log(m),
-        langPath: 'https://cdn.jsdelivr.net/gh/naptha/tessdata@master/4.0.0'
-      });
-      const words = res.data.words || [];
-      const confs = words.map(w => (typeof w.conf === 'number' ? w.conf : NaN)).filter(x => !isNaN(x) && x >= 0);
-      const avgConf = confs.length ? (confs.reduce((a, b) => a + b, 0) / confs.length) : null;
-      const text = cleanText(res.data.text || '');
-      row.cells[2].textContent = text;
-      row.cells[3].textContent = avgConf !== null ? avgConf.toFixed(1) + '%' : '';
-      results.push({ id: idx, name: file.name, text, conf: avgConf, error: '' });
-    } catch (err) {
-      row.cells[4].textContent = err.message || String(err);
-      results.push({ id: idx, name: file.name, text: '', conf: null, error: err.message || String(err) });
-    }
-    idx++;
+  // ====== Tesseract worker pool (reliable Farsi load) ======
+  const pool = { workers: [], max: 0, initPromise: null };
+  const TESS_OPTS = {
+    workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/worker.min.js',
+    corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@4/dist/tesseract-core.wasm.js',
+    langPath: 'https://cdn.jsdelivr.net/gh/naptha/tessdata@4.0.0'
+  };
+  async function makeWorker(){
+    const { createWorker } = Tesseract;
+    const worker = await createWorker(TESS_OPTS);
+    try{ await worker.loadLanguage('fas'); }
+    catch(e){ await worker.terminate(); const alt = await createWorker({ ...TESS_OPTS, langPath: 'https://tessdata.projectnaptha.com/4.0.0' }); await alt.loadLanguage('fas'); await alt.initialize('fas'); await alt.setParameters({ preserve_interword_spaces:'1' }); return alt; }
+    await worker.initialize('fas');
+    await worker.setParameters({ tessedit_char_whitelist: 'ءاآأإابتثجحخدذرزسشصضطظعغفقكلمنهوهيیۀپچژگ۰۱۲۳۴۵۶۷۸۹0123456789.,:؛!؟()[]{}«»-ـ"\'\n ', preserve_interword_spaces:'1' });
+    return worker;
   }
-});
+  async function initPool(n){ if(pool.initPromise) return pool.initPromise; pool.max=n; pool.initPromise=(async()=>{ const arr=[]; for(let i=0;i<n;i++) arr.push(makeWorker()); pool.workers = await Promise.all(arr); })(); return pool.initPromise; }
+  async function recognizeWithPool(task,onProgress){ const w = await (async function wait(){ while(true){ for(const wk of pool.workers){ if(!wk.__busy){ wk.__busy=true; return wk; } } await new Promise(r=>setTimeout(r,40)); } })(); try{ return await w.recognize(task.file,{ logger:onProgress }); } finally{ w.__busy=false; } }
 
-document.getElementById('exportXLSX').addEventListener('click', () => {
-  const ordered = results.map(r => ({
-    index: r.id,
-    file: r.name,
-    text: r.text,
-    confidence: r.conf != null ? Number(r.conf.toFixed(1)) : '',
-    error: r.error || ''
-  }));
-  const ws = XLSX.utils.json_to_sheet(ordered, { header: ['index', 'file', 'text', 'confidence', 'error'] });
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'OCR');
-  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-  const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'ocr_results.xlsx';
-  a.click();
-  URL.revokeObjectURL(url);
-});
+  function isZip(name){ return name.toLowerCase().endsWith('.zip'); }
+  function isImage(name){ return /\.(png|jpg|jpeg|webp|bmp|tif|tiff)$/i.test(name); }
+  function setStatus(msg){ statusEl.textContent = msg; }
+  function setProgress(done, all){ const p = all ? Math.floor((done/all)*100) : 0; bar.style.width = p + '%'; pct.textContent = p + '%'; }
+
+  function addRows(newTasks){
+    const frag = document.createDocumentFragment();
+    newTasks.forEach(t => {
+      const tr = document.createElement('tr');
+      tr.id = `row-${t.id}`;
+      tr.innerHTML = `
+        <td class="num">${t.id+1}</td>
+        <td class="filename">${t.name}</td>
+        <td class="num">${t.part ?? '-'}</td>
+        <td class="text"></td>
+        <td class="conf"></td>
+        <td class="err"></td>`;
+      frag.appendChild(tr);
+    });
+    tableBody.appendChild(frag);
+  }
+
+  function clearAll(){ tasks=[]; results=[]; inProgress=0; nextIndex=0; paused=false; total=0; tableBody.innerHTML=''; setProgress(0,1); setStatus('منتظر فایل…'); btnStart.disabled=true; btnPause.disabled=true; btnExportCSV.disabled=true; btnExportXLSX.disabled=true; btnExportJSON.disabled=true; }
+  btnClear.addEventListener('click', clearAll);
+
+  function handleFiles(fileList){
+    const files = Array.from(fileList); if(!files.length) return; setStatus('در حال آماده‌سازی فایل‌ها…');
+    const zips = files.filter(f=>isZip(f.name)); const imgs = files.filter(f=>isImage(f.name));
+    if(zips.length){ Promise.all(zips.map(loadZip)).then(zipImages=>{ const flat = zipImages.flat(); enqueue(imgs.concat(flat)); }).catch(err=>{ console.error(err); alert('خطا در خواندن ZIP: '+err.message); }); }
+    else enqueue(imgs);
+  }
+
+  async function loadZip(file){ const buf=await file.arrayBuffer(); const zip=await JSZip.loadAsync(buf); const out=[]; for(const e of Object.values(zip.files)){ if(e.dir) continue; if(!isImage(e.name)) continue; const blob=await e.async('blob'); out.push(new File([blob], e.name,{type:blob.type})); } return out; }
+
+  async function maybeSliceImage(file){
+    const mode = slicingModeEl.value; if(mode==='off') return [file];
+    const img = await fileToImage(file); const W=img.width, H=img.height; const isTall = H>W*2.8; if(!isTall && mode==='auto') return [file];
+    const maxSlice = parseInt(maxSliceHEl.value||900,10); const minGap = parseInt(minGapEl.value||18,10); const fixedH = parseInt(fixedHEl.value||640,10);
+    const cvs = document.createElement('canvas'); const ctx = cvs.getContext('2d'); cvs.width=W; cvs.height=H; ctx.drawImage(img,0,0);
+
+    let cuts=[];
+    if(mode==='fixed'){
+      for(let y=0;y<H;y+=fixedH){ cuts.push([y, Math.min(fixedH, H-y)]); }
+    } else {
+      // AUTO: scan horizontal rows for long white gaps
+      const rowStep=2; const imgData = ctx.getImageData(0,0,W,H).data; const whiteRow = (y)=>{ let s=0; const off=y*W*4; for(let x=0;x<W;x++){ const i=off+x*4; const r=imgData[i], g=imgData[i+1], b=imgData[i+2]; s += (r+g+b)/3; } const avg = s/W; return avg>245; };
+      const gaps=[]; let runStart=null, runLen=0;
+      for(let y=0;y<H;y+=rowStep){ const isWhite = whiteRow(y); if(isWhite){ if(runStart===null) runStart=y; runLen+=rowStep; } else { if(runStart!==null && runLen>=minGap){ gaps.push([runStart, runStart+runLen]); } runStart=null; runLen=0; } }
+      if(runStart!==null && runLen>=minGap) gaps.push([runStart, runStart+runLen]);
+      // build slices from gaps as separators
+      let prev=0; for(const [gy0, gy1] of gaps){ const sliceH = gy0 - prev; if(sliceH>=120){ // skip tiny
+          // clamp to maxSlice
+          let y=prev; while((gy0 - y) > maxSlice){ cuts.push([y, maxSlice]); y += maxSlice; }
+          if(gy0 - y >= 120) cuts.push([y, gy0 - y]);
+        } prev = gy1; }
+      if(H - prev >= 120){ let y=prev; while((H - y) > maxSlice){ cuts.push([y, maxSlice]); y += maxSlice; } if(H - y >= 80) cuts.push([y, H - y]); }
+      if(!cuts.length) cuts = [[0, Math.min(maxSlice,H)]]; // fallback
+    }
+
+    // Render slices to blobs
+    const outFiles = []; let part=1;
+    for(const [y,h] of cuts){ const scv=document.createElement('canvas'); scv.width=W; scv.height=h; scv.getContext('2d').drawImage(cvs,0,y,W,h,0,0,W,h); const blob = await new Promise(r=>scv.toBlob(r,'image/png',1)); outFiles.push(new File([blob], file.name.replace(/\.[^.]+$/,'')+`_part${String(part++).padStart(3,'0')}.png`, { type:'image/png' })); }
+    return outFiles;
+  }
+
+  function fileToImage(file){ return new Promise((resolve,reject)=>{ const img=new Image(); img.onload=()=>resolve(img); img.onerror=e=>reject(e); img.src=URL.createObjectURL(file); }); }
+
+  async function enqueue(imgFiles){
+    const startId = tasks.length; const all = [];
+    for(const f of imgFiles){ const slices = await maybeSliceImage(f); let part = 1; for(const s of slices){ all.push({ id: tasks.length + all.length, name: f.name, file: s, part: slices.length>1? part: null }); part++; } }
+    tasks.push(...all); total = tasks.length; addRows(all); setStatus(`${tasks.length} مورد در صف`); btnStart.disabled = tasks.length===0; btnPause.disabled = true;
+  }
+
+  btnChoose.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+  ;['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('dragover'); }));
+  ;['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('dragover'); }));
+  drop.addEventListener('drop', (e)=>{ handleFiles(e.dataTransfer.files); });
+
+  btnStart.addEventListener('click', startOCR);
+  btnPause.addEventListener('click', ()=>{ paused = !paused; btnPause.textContent = paused ? 'ادامه' : 'توقف موقت'; if(!paused) pump(); });
+
+  async function startOCR(){ if(!tasks.length) return; btnStart.disabled=true; btnPause.disabled=false; setStatus('در حال آماده‌سازی OCR…'); const workers = parseInt(concurrencyEl.value,10)||2; await initPool(workers); setStatus('شروع OCR…'); nextIndex=results.length; for(let i=0;i<workers;i++) pump(); }
+
+  function pump(){ if(paused) return; if(nextIndex>=tasks.length) return; const t=tasks[nextIndex++]; inProgress++; processOne(t).finally(()=>{ inProgress--; const done=results.length; setProgress(done,total); setStatus(`انجام شده: ${done}/${total} — در حال پردازش: ${inProgress}`); if(done===total){ setStatus('تمام شد'); btnPause.disabled=true; const has=results.length>0; btnExportCSV.disabled=!has; btnExportXLSX.disabled=!has; btnExportJSON.disabled=!has; } else pump(); }); }
+
+  function cleanText(str){ if(!str) return ''; const mode=cleanupEl.value; let s=String(str).replace(/\r\n|\r|\n/g,' ').replace(/\s+/g,' ').trim(); if(mode==='aggressive'){ s=s.replace(/\u200c/g,'\u200c').replace(/ ?([،,:;؛\.\!\?]) ?/g,'$1 ').replace(/\s{2,}/g,' ').trim(); } return s; }
+
+  async function processOne(task){ const row=document.getElementById(`row-${task.id}`); const textCell=row.querySelector('.text'); const confCell=row.querySelector('.conf'); const errCell=row.querySelector('.err'); try{ const res=await recognizeWithPool(task, m=>{ if(m.status==='recognizing text'){ textCell.textContent='… در حال شناسایی ('+Math.round(m.progress*100)+'%)'; } }); const words=(res?.data?.words)||[]; const confs=words.map(w=> (typeof w.conf==='number'? w.conf:NaN)).filter(x=>!isNaN(x)&&x>=0); const avgConf=confs.length?(confs.reduce((a,b)=>a+b,0)/confs.length):null; const text=cleanText(res?.data?.text||''); textCell.textContent = text || '—'; confCell.textContent = avgConf!==null ? (avgConf.toFixed(1)+'%') : '—'; results.push({ id: task.id, name: task.name, part: task.part, text, conf: avgConf, error: null }); } catch(err){ console.error(err); errCell.textContent=err.message||String(err); results.push({ id: task.id, name: task.name, part: task.part, text:'', conf:null, error: err.message||String(err) }); } }
+
+  function toCSV(rows){ const header=['index','file','part','text','confidence','error']; const lines=[header.join(',')]; rows.slice().sort((a,b)=>a.id-b.id).forEach(r=>{ const rec=[r.id+1, r.name, r.part??'', r.text, r.conf!=null? r.conf.toFixed(1):'', r.error||'']; const esc=rec.map(v=>'"'+String(v).replace(/"/g,'""')+'"'); lines.push(esc.join(',')); }); return lines.join('\n'); }
+  function downloadBlob(data, filename, type){ const blob=new Blob([data],{type}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); }
+
+  btnExportCSV.addEventListener('click', ()=>{ const csv=toCSV(results); downloadBlob(csv, 'ocr_results.csv', 'text/csv;charset=utf-8'); });
+  btnExportJSON.addEventListener('click', ()=>{ const json=JSON.stringify(results.slice().sort((a,b)=>a.id-b.id), null, 2); downloadBlob(json, 'ocr_results.json', 'application/json'); });
+  btnExportXLSX.addEventListener('click', ()=>{ const ordered=results.slice().sort((a,b)=>a.id-b.id).map(r=>({ index:r.id+1, file:r.name, part:r.part??'', text:r.text, confidence:r.conf!=null? Number(r.conf.toFixed(1)):'', error:r.error||'' })); const ws=XLSX.utils.json_to_sheet(ordered); ws['!rtl']=true; ws['!cols']=[{wch:6},{wch:28},{wch:7},{wch:80},{wch:12},{wch:28}]; const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'OCR'); const wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'}); downloadBlob(wbout,'ocr_results.xlsx','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); });
+})();
 </script>
 </body>
 </html>
